@@ -7,14 +7,20 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Random;
 
 public class Main {
     public static void main(String[] args) {
-        try{
+        try {
             HttpServer server = makeServer();
             initRoutes(server);
             server.start();
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -40,25 +46,65 @@ public class Main {
         server.createContext("/apps/profile", exchange -> handleRequest(exchange));
     }
 
-    private static void handleRequest(HttpExchange exchange) {
-        try{
+    private static void handleAppsRequest(HttpExchange exchange) {
+        List<String> applications = List.of(
+                "Instagram", "Telegram", "Threads", "Twitter", "WhatsApp", "TikTok"
+        );
+
+        String app = applications.get(new Random().nextInt(applications.size()));
+
+        Path imagesDir = Path.of("images/").toAbsolutePath();
+        Path imagePath = imagesDir.resolve(app.toLowerCase() + ".png");
+
+        try {
+            Files.createDirectories(imagesDir);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        if (!Files.exists(imagePath)) {
+            sendResponse(exchange, "Your random app for today: " + app + "\nИзображение не найдено!");
+            return;
+        }
+
+        try {
+            exchange.getResponseHeaders().set("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, Files.size(imagePath));
+
+            try (OutputStream os = exchange.getResponseBody();
+                 InputStream imageStream = Files.newInputStream(imagePath)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = imageStream.read(buffer)) != -1) {
+                    os.write(buffer, 0, bytesRead);
+                }
+                os.flush();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void handleMainRequest(HttpExchange exchange) {
+        try {
             exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
             int responseCode = 200;
             int length = 0;
             exchange.sendResponseHeaders(responseCode, length);
 
-            try(PrintWriter writer = getWriterFrom(exchange)) {
+            try (PrintWriter writer = getWriterFrom(exchange)) {
                 String method = exchange.getRequestMethod();
                 URI uri = exchange.getRequestURI();
 
                 String path = exchange.getHttpContext().getPath();
-                write(writer, "HTTP method",method);
+                write(writer, "HTTP method", method);
                 write(writer, "Request", uri.toString());
                 write(writer, "Handler", path);
                 writeHeaders(writer, "Request headers", exchange.getRequestHeaders());
                 writer.flush();
             }
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -68,11 +114,12 @@ public class Main {
         Charset charset = StandardCharsets.UTF_8;
         return new PrintWriter(os, false, charset);
     }
+
     private static void write(Writer writer, String message, String method) {
         String body = String.format("%s: %s\n\n", message, method);
-        try{
+        try {
             writer.write(body);
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
