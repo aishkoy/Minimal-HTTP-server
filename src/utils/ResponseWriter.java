@@ -23,4 +23,18 @@ public class ResponseWriter {
             e.printStackTrace();
         }
     }
+
+    public void sendResponse(HttpExchange exchange, ContentType contentType, HttpStatus status){
+        try {
+            exchange.getResponseHeaders().set("Content-Type", contentType.getMimeType());
+            exchange.sendResponseHeaders(status.getCode(), status.toString().getBytes(StandardCharsets.UTF_8).length);
+
+            try (OutputStreamWriter writer = new OutputStreamWriter(exchange.getResponseBody(), StandardCharsets.UTF_8)) {
+                writer.write(status.toString());
+                writer.flush();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
