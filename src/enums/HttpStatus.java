@@ -2,12 +2,9 @@ package enums;
 
 public enum HttpStatus {
     OK(200, "OK"),
-    CREATED(201, "Created"),
     NO_CONTENT(204, "No Content"),
     NOT_FOUND(404, "Not Found"),
-    INTERNAL_SERVER_ERROR(500, "Internal Server Error");
-
-
+    INTERNAL_SERVER_ERROR(500, "Internal models.Server Error");
 
     private final int code;
     private final String message;
