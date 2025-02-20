@@ -9,8 +9,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
 
@@ -41,9 +39,33 @@ public class Main {
     }
 
     private static void initRoutes(HttpServer server) {
-        server.createContext("/", exchange -> handleRequest(exchange));
-        server.createContext("/apps/", exchange -> handleRequest(exchange));
-        server.createContext("/apps/profile", exchange -> handleRequest(exchange));
+        server.createContext("/", Main::handleMainRequest);
+        server.createContext("/apps", Main::handleAppsRequest);
+        server.createContext("/apps/profile", Main::handleProfileRequest);
+    }
+
+    private static void handleProfileRequest(HttpExchange exchange) {
+        InetSocketAddress addr = exchange.getRemoteAddress();
+        String userIP = addr.getAddress().getHostAddress();
+        int userPort = addr.getPort();
+
+        Headers headers = exchange.getRequestHeaders();
+        String userAgent = headers.getFirst("User-Agent");
+
+        String serverHost = exchange.getLocalAddress().getHostName();
+        int  serverPort = exchange.getLocalAddress().getPort();
+
+
+        String response = String.format(
+                "🔹 Информация о пользователе:\n" +
+                        "📌 IP: %s\n" +
+                        "📌 Порт: %d\n" +
+                        "📌 User-Agent: %s\n\n" +
+                        "🔹 Информация о сервере:\n" +
+                        "📌 Сервер работает на %s:%d",
+                userIP, userPort, userAgent, serverHost, serverPort
+        );
+        sendTextResponse(exchange, response);
     }
 
     private static void handleAppsRequest(HttpExchange exchange) {
@@ -64,7 +86,7 @@ public class Main {
         }
 
         if (!Files.exists(imagePath)) {
-            sendResponse(exchange, "Your random app for today: " + app + "\nИзображение не найдено!");
+            sendTextResponse(exchange, "Your random app for today: " + app + "\nИзображение не найдено!");
             return;
         }
 
@@ -127,5 +149,19 @@ public class Main {
     private static void writeHeaders(Writer writer, String type, Headers headers) {
         write(writer, type, "");
         headers.forEach((key, value) -> write(writer, "\t" + key, value.toString()));
+    }
+
+    private static void sendTextResponse(HttpExchange exchange, String response) {
+        try {
+            exchange.getResponseHeaders().add("Content-Type", "text/plain" + "; charset=utf-8");
+            int length = 0;
+            exchange.sendResponseHeaders(200, length);
+            try (PrintWriter writer = getWriterFrom(exchange)) {
+                writer.write(response);
+                writer.flush();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
