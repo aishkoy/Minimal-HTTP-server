@@ -29,8 +29,7 @@ public class RequestHandler {
                     "Instagram", "Telegram", "Threads", "Twitter", "WhatsApp", "TikTok"
             );
 
-            Random random = new Random();
-            String app = apps.get(random.nextInt(apps.size()));
+            String app = apps.get(new Random().nextInt(apps.size()));
 
             Path imagePath = IMAGES_PATH.resolve(app.toLowerCase() + ".png");
 
@@ -47,15 +46,18 @@ public class RequestHandler {
             responseWriter.sendResponse(exchange, ContentType.PLAIN_TEXT, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
     public void handleMainRequest(HttpExchange exchange) {
         try {
-            String some_path = exchange.getRequestURI().getPath();
+            String requestPath = exchange.getRequestURI().getPath();
+            Path filePath;
 
-            String path = "/".equals(some_path) ? "/index.html" : some_path ;
-            Path filePath = resolveAndValidatePath(path);
+            if ("/".equals(requestPath)) {
+                filePath = Path.of("src/html_pages/home.html").toAbsolutePath();
+            } else {
+                filePath = resolveAndValidatePath(requestPath);
+            }
 
-            if (filePath == null) {
+            if (filePath == null || !Files.exists(filePath)) {
                 responseWriter.sendResponse(exchange, ContentType.PLAIN_TEXT, HttpStatus.NOT_FOUND);
                 return;
             }
@@ -67,12 +69,12 @@ public class RequestHandler {
     }
 
     private Path resolveAndValidatePath(String path) {
-        Path filePath = Path.of(HOME_PATH + path).toAbsolutePath();
+        Path filePath = HOME_PATH.resolve(path.substring(1));
         return isFileValid(filePath) ? filePath : null;
     }
 
     private boolean isFileValid(Path path) {
-        return path.startsWith(HOME_PATH) && Files.exists(path) && !Files.isDirectory(path);
+        return Files.exists(path) && !Files.isDirectory(path);
     }
 
     private void sendFile(HttpExchange exchange, Path filePath) throws IOException {
